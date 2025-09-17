@@ -53,7 +53,13 @@
 
     let currentQuiz = [];
     let currentQuizFile = null;
-    let scores = {};
+
+    // Load saved scores from localStorage
+    let scores = JSON.parse(localStorage.getItem("quizScores") || "{}");
+
+    function saveScores() {
+      localStorage.setItem("quizScores", JSON.stringify(scores));
+    }
 
     function shuffle(array) {
       return array.sort(() => Math.random() - 0.5);
@@ -117,6 +123,7 @@
 
       scoreBox.textContent = `Final Score: ${correct} / ${currentQuiz.length}`;
       scores[currentQuizFile] = `${correct}/${currentQuiz.length}`;
+      saveScores();
       updateSidebarScores();
     }
 
@@ -170,6 +177,9 @@
       li.appendChild(a);
       quizList.appendChild(li);
     });
+
+    // Restore saved scores on load
+    updateSidebarScores();
 
     // Button actions
     finishBtn.onclick = gradeQuiz;
