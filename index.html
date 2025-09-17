@@ -1,162 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   <title>Class Quiz</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 32px auto; padding: 0 16px; }
-    h1 { margin-bottom: 8px; }
-    .meta { color: #555; margin-bottom: 24px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin: 16px 0; }
-    fieldset { border: none; margin: 0; padding: 0; }
-    legend { font-weight: bold; margin-bottom: 8px; }
-    .option { display: block; margin: 8px 0; }
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 16px; }
+    h1 { text-align: center; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 16px 0; }
+    .option { display: block; margin: 6px 0; }
     .feedback { margin-top: 8px; font-size: 0.95rem; }
-    .correct { background: #e6ffed; border-left: 4px solid #2ea043; padding: 8px 12px; border-radius: 8px; }
-    .wrong   { background: #ffecec; border-left: 4px solid #d1242f; padding: 8px 12px; border-radius: 8px; }
-    .controls { display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0; }
-    button { cursor: pointer; padding: 10px 14px; border-radius: 8px; border: 1px solid #ccc; background: #f8f8f8; }
-    button:hover { background: #f0f0f0; }
-    .score { font-weight: bold; }
-    .muted { color: #666; }
+    .correct { background: #e6ffed; border-left: 4px solid #2ea043; padding: 6px 10px; border-radius: 6px; }
+    .wrong   { background: #ffecec; border-left: 4px solid #d1242f; padding: 6px 10px; border-radius: 6px; }
+    .controls { margin: 20px 0; text-align: center; }
+    button { cursor: pointer; padding: 10px 14px; margin: 5px; border-radius: 6px; border: 1px solid #aaa; }
   </style>
 </head>
 <body>
   <h1>Class Quiz</h1>
-  <div class="meta">Select answers, then click <b>Finish & Score</b>. You can also reveal correct answers.</div>
-
   <div id="quiz-container">Loading…</div>
-
-  <div class="controls" id="controls" style="display:none;">
+  <div class="controls">
     <button id="finishBtn">Finish & Score</button>
-    <button id="showAllBtn">Show All Correct Answers</button>
+    <button id="showAllBtn">Show All Answers</button>
     <button id="resetBtn">Reset</button>
-    <span id="score" class="score"></span>
+    <div id="score"></div>
   </div>
 
-  <!-- Optional: include json.js if you store data there -->
-  <script src="json.js" defer></script>
+  <!-- Load questions -->
+  <script src="json.js"></script>
 
   <script>
-    (async function () {
-      // 1) Load quiz data: prefer window.quiz (from json.js), else fallback to quiz.json
-      async function loadQuiz() {
-        if (Array.isArray(window.quiz)) return window.quiz;
-        try {
-          const res = await fetch('quiz.json', {cache: 'no-store'});
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return await res.json();
-        } catch (e) {
-          throw new Error('Could not load quiz data. Provide json.js OR quiz.json. (' + e.message + ')');
-        }
-      }
+    const container = document.getElementById('quiz-container');
+    const finishBtn = document.getElementById('finishBtn');
+    const showAllBtn = document.getElementById('showAllBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const scoreEl = document.getElementById('score');
 
-      // 2) Render
-      const container = document.getElementById('quiz-container');
-      const controls = document.getElementById('controls');
-      const finishBtn = document.getElementById('finishBtn');
-      const showAllBtn = document.getElementById('showAllBtn');
-      const resetBtn = document.getElementById('resetBtn');
-      const scoreEl = document.getElementById('score');
+    function renderQuiz() {
+      container.innerHTML = '';
+      window.quiz.forEach((q, idx) => {
+        const card = document.createElement('div');
+        card.className = 'card';
 
-      function renderQuiz(quiz) {
-        container.innerHTML = '';
-        quiz.forEach((q, idx) => {
-          const card = document.createElement('div');
-          card.className = 'card';
-          const fs = document.createElement('fieldset');
+        const question = document.createElement('p');
+        question.innerHTML = `<b>Q${idx + 1}:</b> ${q.question}`;
+        card.appendChild(question);
 
-          const legend = document.createElement('legend');
-          legend.textContent = `Q${idx + 1}. ${q.question}`;
-          fs.appendChild(legend);
-
-          q.options.forEach((opt, oi) => {
-            const id = `q${idx}_opt${oi}`;
-            const label = document.createElement('label');
-            label.className = 'option';
-            label.setAttribute('for', id);
-
-            const input = document.createElement('input');
-            input.type = 'radio';
-            input.name = `q${idx}`;
-            input.value = opt;
-            input.id = id;
-
-            label.appendChild(input);
-            label.appendChild(document.createTextNode(' ' + opt));
-            fs.appendChild(label);
-          });
-
-          const feedback = document.createElement('div');
-          feedback.className = 'feedback muted';
-          feedback.textContent = 'No answer yet.';
-          fs.appendChild(feedback);
-
-          // Immediate feedback on selection
-          fs.addEventListener('change', (e) => {
-            const selected = fs.querySelector('input[type=radio]:checked');
-            if (!selected) return;
-            const correct = (selected.value === String(q.answer));
-            feedback.className = 'feedback ' + (correct ? 'correct' : 'wrong');
-            feedback.innerHTML = correct
-              ? '✅ Correct.'
-              : `❌ Wrong. <b>Correct:</b> ${q.answer}` + (q.explain ? `<br><span class="muted">${q.explain}</span>` : '');
-          });
-
-          card.appendChild(fs);
-          container.appendChild(card);
+        q.options.forEach((opt, oi) => {
+          const label = document.createElement('label');
+          label.className = 'option';
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = 'q' + idx;
+          input.value = opt;
+          label.appendChild(input);
+          label.appendChild(document.createTextNode(' ' + opt));
+          card.appendChild(label);
         });
 
-        controls.style.display = 'flex';
-      }
+        const feedback = document.createElement('div');
+        feedback.className = 'feedback';
+        feedback.textContent = 'No answer yet.';
+        card.appendChild(feedback);
 
-      function gradeQuiz(quiz) {
-        let correct = 0;
-        quiz.forEach((q, idx) => {
-          const fs = container.querySelectorAll('fieldset')[idx];
-          const selected = fs.querySelector('input[type=radio]:checked');
-          const feedback = fs.querySelector('.feedback');
-          if (selected && selected.value === String(q.answer)) {
-            correct++;
-            if (!feedback.classList.contains('correct')) {
-              feedback.className = 'feedback correct';
-              feedback.textContent = '✅ Correct.';
-            }
-          } else {
-            feedback.className = 'feedback wrong';
-            feedback.innerHTML = `❌ Wrong. <b>Correct:</b> ${q.answer}` + (q.explain ? `<br><span class="muted">${q.explain}</span>` : '');
-          }
-        });
-        scoreEl.textContent = `Score: ${correct} / ${quiz.length}`;
-      }
+        container.appendChild(card);
+      });
+    }
 
-      function showAllAnswers(quiz) {
-        quiz.forEach((q, idx) => {
-          const fs = container.querySelectorAll('fieldset')[idx];
-          const feedback = fs.querySelector('.feedback');
+    function gradeQuiz() {
+      let correct = 0;
+      window.quiz.forEach((q, idx) => {
+        const card = container.children[idx];
+        const selected = card.querySelector('input[type=radio]:checked');
+        const feedback = card.querySelector('.feedback');
+
+        if (selected && selected.value === q.answer) {
+          correct++;
           feedback.className = 'feedback correct';
-          feedback.innerHTML = `✅ Correct answer: <b>${q.answer}</b>` + (q.explain ? `<br><span class="muted">${q.explain}</span>` : '');
-        });
-      }
+          feedback.textContent = '✅ Correct!';
+        } else {
+          feedback.className = 'feedback wrong';
+          feedback.innerHTML = `❌ Wrong. Correct: <b>${q.answer}</b><br>${q.explain || ''}`;
+        }
+      });
+      scoreEl.textContent = `Score: ${correct} / ${window.quiz.length}`;
+    }
 
-      function resetQuiz(quiz) {
-        renderQuiz(quiz);
-        scoreEl.textContent = '';
-      }
+    function showAllAnswers() {
+      window.quiz.forEach((q, idx) => {
+        const card = container.children[idx];
+        const feedback = card.querySelector('.feedback');
+        feedback.className = 'feedback correct';
+        feedback.innerHTML = `✅ Correct answer: <b>${q.answer}</b><br>${q.explain || ''}`;
+      });
+    }
 
-      try {
-        const quiz = await loadQuiz();
-        renderQuiz(quiz);
+    function resetQuiz() {
+      scoreEl.textContent = '';
+      renderQuiz();
+    }
 
-        finishBtn.onclick = () => gradeQuiz(quiz);
-        showAllBtn.onclick = () => showAllAnswers(quiz);
-        resetBtn.onclick = () => resetQuiz(quiz);
-      } catch (e) {
-        container.textContent = e.message;
-        controls.style.display = 'none';
-      }
-    })();
+    // Event listeners
+    finishBtn.onclick = gradeQuiz;
+    showAllBtn.onclick = showAllAnswers;
+    resetBtn.onclick = resetQuiz;
+
+    // Initial render
+    renderQuiz();
   </script>
 </body>
 </html>
