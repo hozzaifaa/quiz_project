@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="="utf-8">
   <title>Dynamic Multi-Quiz App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -19,7 +19,6 @@
 
   <style>
     body { background: #f8f9fa; }
-    .sidebar { min-height: 100vh; background: #fff; border-right: 1px solid #ddd; padding: 20px; }
     .card { margin-bottom: 20px; }
     .feedback { margin-top: 10px; font-size: 0.95rem; }
     .correct { color: green; font-weight: bold; }
@@ -29,35 +28,64 @@
     .score-label { font-size: 0.9rem; color: #555; }
     /* Dark Mode */
     body.dark-mode { background: #121212; color: #e0e0e0; }
-    body.dark-mode .sidebar { background: #1e1e1e; border-right: 1px solid #333; }
     body.dark-mode .card { background: #1e1e1e; border: 1px solid #333; color: #e0e0e0; }
     body.dark-mode h1, body.dark-mode h3, body.dark-mode h5 { color: #e0e0e0; }
     body.dark-mode .btn { border-color: #444; }
     body.dark-mode .MathJax { color: #e0e0e0 !important; }
     body.dark-mode .feedback { color: #bbb !important; }
+
+    /* ✅ Sidebar + Offcanvas in dark mode */
+    body.dark-mode #sidebar.offcanvas,
+    body.dark-mode .offcanvas-body,
+    body.dark-mode .offcanvas-header {
+      background: #1e1e1e;
+      color: #e0e0e0;
+    }
+    body.dark-mode #sidebar .nav-link { color: #bbb; }
+    body.dark-mode #sidebar .nav-link.active { background: #333; color: #fff; }
+    body.dark-mode #sidebar .btn-close { filter: invert(1); } /* makes close icon visible */
+
     /* Active quiz link */
     .nav-link.active { font-weight: bold; background: #e9ecef; }
     body.dark-mode .nav-link.active { background: #333; color: #fff; }
+
+    /* Sidebar always visible on desktop */
+    @media (min-width: 768px) {
+      #sidebar.offcanvas { position: static; transform: none; visibility: visible !important; }
+      .offcanvas-backdrop { display: none; }
+    }
   </style>
 </head>
 <body>
   <div class="container-fluid">
     <div class="row">
+      <!-- Mobile toggle button -->
+      <div class="d-md-none p-2">
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar">
+          ☰ Menu
+        </button>
+      </div>
+
       <!-- Sidebar -->
-      <nav class="col-md-3 col-lg-2 sidebar">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4>Choose a Quiz</h4>
-          <button id="darkModeBtn" class="btn btn-sm btn-outline-secondary">🌙</button>
+      <div class="offcanvas offcanvas-start col-md-3 col-lg-2" tabindex="-1" id="sidebar">
+        <div class="offcanvas-header">
+          <h4 class="offcanvas-title">Choose a Quiz</h4>
+          <button type="button" class="btn-close d-md-none" data-bs-dismiss="offcanvas"></button>
         </div>
-        <ul class="nav flex-column" id="quizList"></ul>
-        <hr>
-        <button id="clearScoresBtn" class="btn btn-danger btn-sm mt-2">Clear All Quizzes</button>
-      </nav>
+        <div class="offcanvas-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="darkModeBtn" class="btn btn-sm btn-outline-secondary">🌙</button>
+          </div>
+          <ul class="nav flex-column" id="quizList"></ul>
+          <hr>
+          <button id="clearScoresBtn" class="btn btn-danger btn-sm mt-2">Clear All Quizzes</button>
+        </div>
+      </div>
 
       <!-- Main content -->
       <main class="col-md-9 col-lg-10 p-4">
         <h1 class="text-center mb-4" id="quizTitle">📘 Class Quiz</h1>
-        <div id="quiz-container">👉 Select a quiz from the sidebar</div>
+        <div id="quiz-container">👉 Select a quiz from the menu</div>
 
         <div class="text-center mt-4">
           <button id="finishBtn" class="btn btn-success me-2" disabled>Submit</button>
@@ -255,12 +283,12 @@
     finishBtn.onclick=gradeQuiz;
     resetBtn.onclick=()=>{ 
       if (currentQuizFile && scores[currentQuizFile]) {
-        delete scores[currentQuizFile]; // ❌ remove saved score
+        delete scores[currentQuizFile];
         saveScores();
         updateSidebarScores();
       }
       scoreBox.textContent='';
-      loadQuiz(currentQuizFile); // reload fresh so student can retry
+      loadQuiz(currentQuizFile);
     };
     clearScoresBtn.onclick=clearAllScores;
   </script>
