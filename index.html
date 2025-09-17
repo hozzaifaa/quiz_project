@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Class Quiz</title>
+  <title>Multi-Quiz App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body { background: #f8f9fa; }
+    .sidebar { min-height: 100vh; background: #fff; border-right: 1px solid #ddd; padding: 20px; }
     .card { margin-bottom: 20px; }
     .feedback { margin-top: 10px; font-size: 0.95rem; }
     .correct { color: green; font-weight: bold; }
@@ -16,21 +17,40 @@
   </style>
 </head>
 <body>
-  <div class="container mt-4">
-    <h1 class="text-center mb-4">📘 Class Quiz</h1>
-    <div id="quiz-container"></div>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 sidebar">
+        <h4>Choose a Quiz</h4>
+        <ul class="nav flex-column" id="quizList">
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz1.js">Quiz 1</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz2.js">Quiz 2</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz3.js">Quiz 3</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz4.js">Quiz 4</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz5.js">Quiz 5</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz6.js">Quiz 6</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz7.js">Quiz 7</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz8.js">Quiz 8</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz9.js">Quiz 9</a></li>
+          <li class="nav-item"><a href="#" class="nav-link" data-file="quiz10.js">Quiz 10</a></li>
+        </ul>
+      </nav>
 
-    <div class="text-center mt-4">
-      <button id="finishBtn" class="btn btn-success me-2">Finish & Score</button>
-      <button id="showAllBtn" class="btn btn-info me-2">Show All Answers</button>
-      <button id="resetBtn" class="btn btn-secondary">Reset</button>
+      <!-- Main content -->
+      <main class="col-md-9 col-lg-10 p-4">
+        <h1 class="text-center mb-4">📘 Class Quiz</h1>
+        <div id="quiz-container">👉 Select a quiz from the sidebar</div>
+
+        <div class="text-center mt-4">
+          <button id="finishBtn" class="btn btn-success me-2" disabled>Finish & Score</button>
+          <button id="showAllBtn" class="btn btn-info me-2" disabled>Show All Answers</button>
+          <button id="resetBtn" class="btn btn-secondary" disabled>Reset</button>
+        </div>
+
+        <div id="scoreBox" class="text-center"></div>
+      </main>
     </div>
-
-    <div id="scoreBox" class="text-center"></div>
   </div>
-
-  <!-- Questions file -->
-  <script src="json.js"></script>
 
   <script>
     const container = document.getElementById('quiz-container');
@@ -39,6 +59,8 @@
     const resetBtn = document.getElementById('resetBtn');
     const scoreBox = document.getElementById('scoreBox');
 
+    let currentQuiz = [];
+
     // Shuffle helper
     function shuffle(array) {
       return array.sort(() => Math.random() - 0.5);
@@ -46,8 +68,8 @@
 
     function renderQuiz() {
       container.innerHTML = '';
-      window.quiz = shuffle(window.quiz); // shuffle questions
-      window.quiz.forEach((q, idx) => {
+      currentQuiz = shuffle(window.quiz); // shuffle questions
+      currentQuiz.forEach((q, idx) => {
         const card = document.createElement('div');
         card.className = 'card p-3 shadow-sm';
 
@@ -55,7 +77,6 @@
         qTitle.innerHTML = `Q${idx + 1}: ${q.question}`;
         card.appendChild(qTitle);
 
-        // shuffle options too
         shuffle(q.options).forEach(opt => {
           const div = document.createElement('div');
           div.className = 'form-check';
@@ -79,11 +100,15 @@
 
         container.appendChild(card);
       });
+
+      finishBtn.disabled = false;
+      showAllBtn.disabled = false;
+      resetBtn.disabled = false;
     }
 
     function gradeQuiz() {
       let correct = 0;
-      window.quiz.forEach((q, idx) => {
+      currentQuiz.forEach((q, idx) => {
         const card = container.children[idx];
         const selected = card.querySelector('input[type=radio]:checked');
         const feedback = card.querySelector('.feedback');
@@ -97,11 +122,11 @@
           feedback.innerHTML = `❌ Wrong. Correct: <b>${q.answer}</b><br><small>${q.explain || ''}</small>`;
         }
       });
-      scoreBox.textContent = `Final Score: ${correct} / ${window.quiz.length}`;
+      scoreBox.textContent = `Final Score: ${correct} / ${currentQuiz.length}`;
     }
 
     function showAllAnswers() {
-      window.quiz.forEach((q, idx) => {
+      currentQuiz.forEach((q, idx) => {
         const card = container.children[idx];
         const feedback = card.querySelector('.feedback');
         feedback.className = 'feedback correct';
@@ -114,11 +139,34 @@
       renderQuiz();
     }
 
+    // Load quiz dynamically
+    document.getElementById('quizList').addEventListener('click', async (e) => {
+      if (e.target.dataset.file) {
+        e.preventDefault();
+        const file = e.target.dataset.file;
+
+        // Remove old script if any
+        const oldScript = document.getElementById('quizScript');
+        if (oldScript) oldScript.remove();
+
+        // Load new quiz script
+        const script = document.createElement('script');
+        script.src = file + '?t=' + Date.now(); // prevent caching
+        script.id = 'quizScript';
+        script.onload = () => {
+          if (window.quiz) {
+            renderQuiz();
+            scoreBox.textContent = '';
+          }
+        };
+        document.body.appendChild(script);
+      }
+    });
+
+    // Button actions
     finishBtn.onclick = gradeQuiz;
     showAllBtn.onclick = showAllAnswers;
     resetBtn.onclick = resetQuiz;
-
-    renderQuiz();
   </script>
 </body>
 </html>
