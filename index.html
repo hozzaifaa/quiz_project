@@ -4,7 +4,19 @@
   <meta charset="utf-8">
   <title>Dynamic Multi-Quiz App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- MathJax Config -->
+  <script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+    svg: { fontCache: 'global' }
+  };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
   <style>
     body { background: #f8f9fa; }
     .sidebar { min-height: 100vh; background: #fff; border-right: 1px solid #ddd; padding: 20px; }
@@ -15,6 +27,17 @@
     #scoreBox { margin-top: 20px; font-size: 1.2rem; font-weight: bold; }
     .quiz-link { display: flex; justify-content: space-between; }
     .score-label { font-size: 0.9rem; color: #555; }
+    /* Dark Mode */
+    body.dark-mode { background: #121212; color: #e0e0e0; }
+    body.dark-mode .sidebar { background: #1e1e1e; border-right: 1px solid #333; }
+    body.dark-mode .card { background: #1e1e1e; border: 1px solid #333; color: #e0e0e0; }
+    body.dark-mode h1, body.dark-mode h3, body.dark-mode h5 { color: #e0e0e0; }
+    body.dark-mode .btn { border-color: #444; }
+    body.dark-mode .MathJax { color: #e0e0e0 !important; }
+    body.dark-mode .feedback { color: #bbb !important; }
+    /* Active quiz link */
+    .nav-link.active { font-weight: bold; background: #e9ecef; }
+    body.dark-mode .nav-link.active { background: #333; color: #fff; }
   </style>
 </head>
 <body>
@@ -22,18 +45,23 @@
     <div class="row">
       <!-- Sidebar -->
       <nav class="col-md-3 col-lg-2 sidebar">
-        <h4>Choose a Quiz</h4>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h4>Choose a Quiz</h4>
+          <button id="darkModeBtn" class="btn btn-sm btn-outline-secondary">🌙</button>
+        </div>
         <ul class="nav flex-column" id="quizList"></ul>
+        <hr>
+        <button id="clearScoresBtn" class="btn btn-danger btn-sm mt-2">Clear All Quizzes</button>
       </nav>
 
       <!-- Main content -->
       <main class="col-md-9 col-lg-10 p-4">
-        <h1 class="text-center mb-4">📘 Class Quiz</h1>
+        <h1 class="text-center mb-4" id="quizTitle">📘 Class Quiz</h1>
         <div id="quiz-container">👉 Select a quiz from the sidebar</div>
 
         <div class="text-center mt-4">
-          <button id="finishBtn" class="btn btn-success me-2" disabled>Finish & Score</button>
-          <button id="resetBtn" class="btn btn-secondary" disabled>Reset</button>
+          <button id="finishBtn" class="btn btn-success me-2" disabled>Submit</button>
+          <button id="resetBtn" class="btn btn-secondary me-2" disabled>Reset</button>
         </div>
 
         <div id="scoreBox" class="text-center"></div>
@@ -41,37 +69,33 @@
     </div>
   </div>
 
-  <!-- Load manifest -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="manifest.js"></script>
 
   <script>
     const container = document.getElementById('quiz-container');
+    const scoreBox = document.getElementById('scoreBox');
+    const quizTitleEl = document.getElementById('quizTitle');
+
     const finishBtn = document.getElementById('finishBtn');
     const resetBtn = document.getElementById('resetBtn');
-    const scoreBox = document.getElementById('scoreBox');
+    const clearScoresBtn = document.getElementById('clearScoresBtn');
+    const darkModeBtn = document.getElementById('darkModeBtn');
     const quizList = document.getElementById('quizList');
 
     let currentQuiz = [];
     let currentQuizFile = null;
 
-    // Load saved scores from localStorage
     let scores = JSON.parse(localStorage.getItem("quizScores") || "{}");
+    function saveScores() { localStorage.setItem("quizScores", JSON.stringify(scores)); }
 
-    function saveScores() {
-      localStorage.setItem("quizScores", JSON.stringify(scores));
-    }
-
-    function shuffle(array) {
-      return array.sort(() => Math.random() - 0.5);
-    }
+    function shuffle(array) { return array.sort(() => Math.random() - 0.5); }
 
     function renderQuiz() {
       container.innerHTML = '';
-      currentQuiz = shuffle(window.quiz);
       currentQuiz.forEach((q, idx) => {
         const card = document.createElement('div');
         card.className = 'card p-3 shadow-sm';
-
         const qTitle = document.createElement('h5');
         qTitle.innerHTML = `Q${idx + 1}: ${q.question}`;
         card.appendChild(qTitle);
@@ -84,10 +108,10 @@
           input.name = 'q' + idx;
           input.value = opt;
           input.className = 'form-check-input';
+          div.appendChild(input);
           const label = document.createElement('label');
           label.className = 'form-check-label';
-          label.textContent = opt;
-          div.appendChild(input);
+          label.innerHTML = opt;
           div.appendChild(label);
           card.appendChild(div);
         });
@@ -102,88 +126,143 @@
 
       finishBtn.disabled = false;
       resetBtn.disabled = false;
+      if (window.MathJax) MathJax.typesetPromise([container]);
     }
 
     function gradeQuiz() {
+      let studentAnswers = {}, feedbackData = {};
+      for (let idx = 0; idx < currentQuiz.length; idx++) {
+        const card = container.children[idx];
+        const selected = card.querySelector('input[type=radio]:checked');
+        if (!selected) { alert("⚠️ Please answer all questions before submitting."); return; }
+        studentAnswers["q" + idx] = selected.value;
+      }
+
       let correct = 0;
       currentQuiz.forEach((q, idx) => {
         const card = container.children[idx];
         const selected = card.querySelector('input[type=radio]:checked');
         const feedback = card.querySelector('.feedback');
-
-        if (selected && selected.value === q.answer) {
+        if (selected.value === q.answer) {
           correct++;
           feedback.className = 'feedback correct';
           feedback.textContent = '✅ Correct!';
         } else {
           feedback.className = 'feedback wrong';
-          feedback.innerHTML = `❌ Wrong. Correct: <b>${q.answer}</b><br><small>${q.explain || ''}</small>`;
+          feedback.innerHTML = `❌ Wrong. Correct: <b>${q.answer}</b><br><small>${q.explain||''}</small>`;
         }
+        feedbackData["q" + idx] = feedback.innerHTML;
       });
 
-      scoreBox.textContent = `Final Score: ${correct} / ${currentQuiz.length}`;
-      scores[currentQuizFile] = `${correct}/${currentQuiz.length}`;
-      saveScores();
-      updateSidebarScores();
+      let badge = (correct === currentQuiz.length) ? " 🏆" : "";
+      scoreBox.textContent = `Final Score: ${correct}/${currentQuiz.length}${badge}`;
+
+      scores[currentQuizFile] = { score: `${correct}/${currentQuiz.length}${badge}`, answers: studentAnswers, feedback: feedbackData };
+      saveScores(); updateSidebarScores();
+
+      container.querySelectorAll("input[type=radio]").forEach(r => r.disabled = true);
+
+      finishBtn.disabled = true;
+      resetBtn.disabled = false; // allow retry with reset
+
+      if (window.MathJax) MathJax.typesetPromise([container]);
     }
 
-    function resetQuiz() {
-      scoreBox.textContent = '';
-      renderQuiz();
-    }
-
-    function updateSidebarScores() {
-      [...quizList.querySelectorAll('a')].forEach(link => {
-        const file = link.dataset.file;
-        const scoreSpan = link.querySelector('.score-label');
-        if (scores[file]) {
-          scoreSpan.textContent = scores[file];
-        } else {
-          scoreSpan.textContent = '';
-        }
-      });
-    }
-
-    function loadQuiz(file) {
+    function loadQuiz(file, title=null) {
       currentQuizFile = file;
-      const oldScript = document.getElementById('quizScript');
-      if (oldScript) oldScript.remove();
-
+      delete window.quiz;
+      const old = document.getElementById('quizScript'); if (old) old.remove();
       const script = document.createElement('script');
-      script.src = file + '?t=' + Date.now();
-      script.id = 'quizScript';
+      script.src = file + '?t=' + Date.now(); script.id = 'quizScript';
       script.onload = () => {
         if (window.quiz) {
+          currentQuiz = shuffle(window.quiz.slice());
           renderQuiz();
-          scoreBox.textContent = '';
+
+          const finalTitle = title || window.quizTitle || file;
+          quizTitleEl.textContent = "📘 " + finalTitle;
+
+          localStorage.setItem("lastQuiz", JSON.stringify({file, title: finalTitle}));
+          setActiveLink(file);
+
+          if (scores[file]) {
+            let saved = scores[file];
+            Object.keys(saved.answers).forEach(key => {
+              const idx = parseInt(key.substring(1));
+              const value = saved.answers[key];
+              const radios = container.querySelectorAll(`input[name=q${idx}]`);
+              radios.forEach(r => { if (r.value === value) r.checked = true; });
+            });
+            Object.keys(saved.feedback).forEach(key => {
+              const idx = parseInt(key.substring(1));
+              container.children[idx].querySelector('.feedback').innerHTML = saved.feedback[key];
+            });
+            container.querySelectorAll("input[type=radio]").forEach(r => r.disabled = true);
+            finishBtn.disabled = true;
+            resetBtn.disabled = false;
+            scoreBox.textContent = "Previous Score: " + saved.score;
+          } else {
+            scoreBox.textContent = '';
+            finishBtn.disabled = false;
+            resetBtn.disabled = false;
+          }
+          if (window.MathJax) MathJax.typesetPromise([container]);
         }
       };
       document.body.appendChild(script);
     }
 
-    // Build sidebar dynamically from manifest
-    window.quizManifest.forEach(item => {
-      const li = document.createElement('li');
-      li.className = 'nav-item';
-      const a = document.createElement('a');
-      a.href = "#";
-      a.className = "nav-link quiz-link";
-      a.dataset.file = item.file;
-      a.innerHTML = `<span>${item.title}</span><span class="score-label"></span>`;
-      a.onclick = (e) => {
-        e.preventDefault();
-        loadQuiz(item.file);
-      };
-      li.appendChild(a);
-      quizList.appendChild(li);
-    });
+    function clearAllScores() {
+      scores = {}; saveScores(); updateSidebarScores();
+      scoreBox.textContent = ''; alert("✅ All quizzes cleared. Students can retake.");
+    }
 
-    // Restore saved scores on load
+    function updateSidebarScores() {
+      quizList.querySelectorAll('a').forEach(link => {
+        const file = link.dataset.file;
+        const scoreSpan = link.querySelector('.score-label');
+        scoreSpan.textContent = scores[file] ? scores[file].score : '';
+      });
+    }
+
+    function setActiveLink(file) {
+      quizList.querySelectorAll('a').forEach(link => {
+        link.classList.toggle("active", link.dataset.file === file);
+      });
+    }
+
+    // Dark Mode
+    function setDarkMode(enable) { document.body.classList.toggle('dark-mode', enable); localStorage.setItem('darkMode', enable); }
+    if (localStorage.getItem('darkMode')==='true') setDarkMode(true);
+    darkModeBtn.onclick = () => setDarkMode(!document.body.classList.contains('dark-mode'));
+
+    // Sidebar from manifest.js
+    window.quizManifest.forEach(item => {
+      const li=document.createElement('li'); li.className='nav-item';
+      const a=document.createElement('a'); a.href='#'; a.className="nav-link quiz-link"; a.dataset.file=item.file;
+      a.innerHTML=`<span>${item.title}</span><span class="score-label"></span>`;
+      a.onclick=(e)=>{e.preventDefault(); loadQuiz(item.file, item.title);};
+      li.appendChild(a); quizList.appendChild(li);
+    });
     updateSidebarScores();
 
-    // Button actions
-    finishBtn.onclick = gradeQuiz;
-    resetBtn.onclick = resetQuiz;
+    const last=localStorage.getItem("lastQuiz");
+    if(last) {
+      const {file, title} = JSON.parse(last);
+      loadQuiz(file, title);
+    }
+
+    finishBtn.onclick=gradeQuiz;
+    resetBtn.onclick=()=>{ 
+      if (currentQuizFile && scores[currentQuizFile]) {
+        delete scores[currentQuizFile]; // ❌ remove saved score
+        saveScores();
+        updateSidebarScores();
+      }
+      scoreBox.textContent='';
+      loadQuiz(currentQuizFile); // reload fresh so student can retry
+    };
+    clearScoresBtn.onclick=clearAllScores;
   </script>
 </body>
 </html>
