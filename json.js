@@ -1,4 +1,5 @@
 // json.js
+// Define your quiz data here
 window.quiz = [
   {
     question: "What is 2 + 2?",
@@ -10,6 +11,18 @@ window.quiz = [
     question: "Which planet is known as the Red Planet?",
     options: ["Earth", "Mars", "Venus"],
     answer: "Mars",
-    explain: "Mars appears reddish due to iron oxide."
+    explain: "Mars looks red because of iron oxide (rust) on its surface."
+  },
+  {
+    question: "Who wrote the play 'Romeo and Juliet'?",
+    options: ["William Shakespeare", "Charles Dickens", "Jane Austen"],
+    answer: "William Shakespeare",
+    explain: "Shakespeare wrote it in the late 16th century."
+  },
+  {
+    question: "Which gas do humans need to breathe to survive?",
+    options: ["Oxygen", "Carbon Dioxide", "Nitrogen"],
+    answer: "Oxygen",
+    explain: "Oxygen is essential for cellular respiration."
   }
 ];
